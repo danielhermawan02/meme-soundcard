@@ -560,20 +560,17 @@ async function clearAllSounds() {
             URL.revokeObjectURL(sound.url);
         }
         if (!sound.isDefault) {
-            // Only delete custom sounds from DB, preserve defaults
+            // Only delete custom sounds from DB
             await deleteSoundFromDB(sound.id);
         }
     }
+    // For defaults, we just clear them from the current memory view
     sounds = [];
-    await saveMetadata('defaultsLoaded', false);
     renderSounds();
 }
 
 async function loadDefaultSounds() {
-    const alreadyLoaded = await getMetadata('defaultsLoaded');
-    if (alreadyLoaded) return;
-
-    console.log('Loading default sounds...');
+    console.log('Loading default sounds into memory...');
     
     for (const def of DEFAULT_SOUNDS) {
         try {
@@ -582,26 +579,28 @@ async function loadDefaultSounds() {
             const blob = await response.blob();
             
             const sound = {
-                id: generateId(),
+                id: 'default-' + def.name.toLowerCase().replace(/\s+/g, '-'),
                 name: def.name,
                 blob: blob,
                 url: URL.createObjectURL(blob),
                 volume: 1,
                 loop: false,
-                isDefault: true, // Mark as default
+                isDefault: true,
+                hidden: false,
                 fileName: def.name + '.mp3',
                 fileSize: blob.size
             };
 
-            sounds.push(sound);
-            await saveSoundToDB(sound);
-            console.log(`Loaded default: ${def.name}`);
+            // Only add if not already in memory (to prevent duplicates if called multiple times)
+            if (!sounds.find(s => s.id === sound.id)) {
+                sounds.push(sound);
+                console.log(`Loaded default: ${def.name}`);
+            }
         } catch (err) {
             console.warn(`Failed to load default sound ${def.name}:`, err);
         }
     }
     
-    await saveMetadata('defaultsLoaded', true);
     renderSounds();
 }
 
@@ -703,18 +702,25 @@ async function init() {
 }
 
 async function loadAppContent() {
-    // Load custom sounds from DB
+    // 1. Cleanup: Remove any legacy default sounds from the DB 
+    // (We now load them fresh from the server every time)
     const storedSounds = await getAllSoundsFromDB();
-    sounds = storedSounds
-        .filter(s => !s.isDefault) // Only load custom sounds from DB
-        .map(sound => {
-            if (sound.blob) {
-                sound.url = URL.createObjectURL(sound.blob);
-            }
-            return sound;
-        });
+    for (const s of storedSounds) {
+        if (s.isDefault) {
+            await deleteSoundFromDB(s.id);
+        }
+    }
+
+    // 2. Load custom sounds from DB
+    const customSounds = (await getAllSoundsFromDB()).filter(s => !s.isDefault);
+    sounds = customSounds.map(sound => {
+        if (sound.blob) {
+            sound.url = URL.createObjectURL(sound.blob);
+        }
+        return sound;
+    });
     
-    // Always reload default sounds fresh (they persist in server, not DB)
+    // 3. Always reload default sounds fresh from assets
     await loadDefaultSounds();
     
     renderSounds();
