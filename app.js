@@ -11,13 +11,27 @@ let globalVolume = 0.8;
 let allowOverlap = false;
 
 const DEFAULT_SOUNDS = [
-    // Add your local files here after dragging them into assets/sounds/
-    // Example: { name: 'My Sound', url: 'assets/sounds/mysound.mp3' },
-    { name: 'Airhorn', url: 'https://www.myinstants.com/media/sounds/mlg-air-horn.mp3' },
-    { name: 'Bruh', url: 'https://www.myinstants.com/media/sounds/bruh.mp3' },
-    { name: 'Emotional Damage', url: 'https://www.myinstants.com/media/sounds/emotional-damage-meme.mp3' },
-    { name: 'Windows XP Error', url: 'https://www.myinstants.com/media/sounds/errop.mp3' },
-    { name: 'Curb Your Enthusiasm', url: 'https://www.myinstants.com/media/sounds/curb-your-enthusiasm-theme.mp3' }
+    { name: 'A Few Moments Later', url: 'assets/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3' },
+    { name: 'Angry Birds Yeah', url: 'assets/sounds/angry-birds-plush-yeah-sfx.mp3' },
+    { name: 'Bass Drop', url: 'assets/sounds/bass-drop-edit_mixdown.mp3' },
+    { name: 'Ding', url: 'assets/sounds/ding-sound-effect_2.mp3' },
+    { name: 'Dun Dun Dun', url: 'assets/sounds/dun-dun-dun-sound-effect-brass_8nFBccR.mp3' },
+    { name: 'Error', url: 'assets/sounds/error_CDOxCYm.mp3' },
+    { name: 'Fahhh', url: 'assets/sounds/fahhhhhhhhhhhhhh.mp3' },
+    { name: 'GTA Mission Complete', url: 'assets/sounds/gta-san-andreas-mission-complete-sound-hq.mp3' },
+    { name: 'Halo Gaes', url: 'assets/sounds/halo-gaes.mp3' },
+    { name: 'Happy Happy Happy', url: 'assets/sounds/happy-happy-happy-song.mp3' },
+    { name: 'Kids Yay', url: 'assets/sounds/kids-saying-yay-sound-effect_3.mp3' },
+    { name: 'Mentality', url: 'assets/sounds/mentality.mp3' },
+    { name: 'MLG Airhorn', url: 'assets/sounds/mlg-airhorn.mp3' },
+    { name: 'Movie', url: 'assets/sounds/movie_1.mp3' },
+    { name: 'Patrick Pembohong', url: 'assets/sounds/patrick-pembohong-kau-pembohong.mp3' },
+    { name: 'Punch', url: 'assets/sounds/punch_u4LmMsr.mp3' },
+    { name: 'Record Scratch', url: 'assets/sounds/record-scratch-2.mp3' },
+    { name: 'Rizz', url: 'assets/sounds/rizz-sound-effect.mp3' },
+    { name: 'Shock Kaget', url: 'assets/sounds/shock-kaget.mp3' },
+    { name: 'Sudden Suspense', url: 'assets/sounds/sudden-suspense-sound-effect.mp3' },
+    { name: 'Vine Boom', url: 'assets/sounds/vine-boom.mp3' }
 ];
 
 const soundboardGrid = document.getElementById('soundboardGrid');
