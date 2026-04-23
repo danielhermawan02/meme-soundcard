@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "name": "local-meme-soundboard",
+  "cleanUrls": true,
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": "."
+}

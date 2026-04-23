@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Meme Soundboard</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>🔊 Meme Soundboard</h1>
+            <div class="header-controls">
+                <button id="editModeBtn" class="btn btn-secondary">Edit Mode</button>
+                <button id="importBtn" class="btn btn-primary">Import Sounds</button>
+            </div>
+        </header>
+
+        <div class="control-panel">
+            <div class="volume-control">
+                <label for="globalVolume">🔊 Volume:</label>
+                <input type="range" id="globalVolume" min="0" max="100" value="80">
+                <span id="volumeValue">80%</span>
+            </div>
+            <div class="playback-controls">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="overlapToggle">
+                    Allow Overlap
+                </label>
+            </div>
+        </div>
+
+        <div class="edit-toolbar" id="editToolbar">
+            <button id="addSoundBtn" class="btn btn-add">+ Add Sound</button>
+            <button id="clearAllBtn" class="btn btn-danger">Clear All</button>
+        </div>
+
+        <main class="soundboard-grid" id="soundboardGrid">
+        </main>
+
+        <footer class="app-footer">
+            <p>Tip: Click buttons to play sounds | Toggle Edit Mode to manage</p>
+        </footer>
+    </div>
+
+    <input type="file" id="fileInput" multiple accept=".mp3,.wav,.ogg" style="display: none;">
+
+    <script src="app.js"></script>
+</body>
+</html>
