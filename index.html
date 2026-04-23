@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Local Meme Soundboard</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3659/3659899.png">
 </head>
 <body>
     <div id="authContainer" class="auth-container">
@@ -34,7 +37,7 @@
 
     <div class="app-container" id="mainApp" style="display: none;">
         <header class="app-header">
-            <h1>🔊 Meme Soundboard</h1>
+            <h1>🔊 Meme Soundboard <span id="offlineBadge" style="display: none; font-size: 0.8rem; background: var(--secondary-color); padding: 2px 8px; border-radius: 12px; vertical-align: middle;">Offline</span></h1>
             <div class="header-controls">
                 <button id="logoutBtn" class="btn btn-secondary">Logout</button>
                 <button id="securityBtn" class="btn btn-secondary">Security</button>

@@ -662,6 +662,26 @@ function toggleEditMode() {
 }
 
 async function init() {
+    // Register Service Worker for offline support
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.error('Service Worker failed', err));
+        });
+    }
+
+    // Network status monitoring
+    const offlineBadge = document.getElementById('offlineBadge');
+    const updateOnlineStatus = () => {
+        if (offlineBadge) {
+            offlineBadge.style.display = navigator.onLine ? 'none' : 'inline-block';
+        }
+    };
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
     try {
         await openDatabase();
         await loadSettings();
