@@ -10,6 +10,23 @@ let isEditMode = false;
 let globalVolume = 0.8;
 let allowOverlap = false;
 
+// Auth State
+let isAuthenticated = false;
+let isSetupMode = false;
+
+const authContainer = document.getElementById('authContainer');
+const mainApp = document.getElementById('mainApp');
+const authForm = document.getElementById('authForm');
+const authTitle = document.getElementById('authTitle');
+const authSubtitle = document.getElementById('authSubtitle');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authError = document.getElementById('authError');
+const setupFields = document.getElementById('setupFields');
+const usernameInput = document.getElementById('username');
+const passwordInput = document.getElementById('password');
+const confirmPasswordInput = document.getElementById('confirmPassword');
+const logoutBtn = document.getElementById('logoutBtn');
+
 const DEFAULT_SOUNDS = [
     { name: 'A Few Moments Later', url: 'assets/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3' },
     { name: 'Angry Birds Yeah', url: 'assets/sounds/angry-birds-plush-yeah-sfx.mp3' },
@@ -47,6 +64,77 @@ const overlapToggle = document.getElementById('overlapToggle');
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+// Security: Hash password using SHA-256
+async function hashPassword(password) {
+    const msgUint8 = new TextEncoder().encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function checkAuthState() {
+    const authData = await getMetadata('authData');
+    const sessionToken = sessionStorage.getItem('auth_token');
+
+    if (!authData) {
+        // First run - Setup mode
+        isSetupMode = true;
+        authTitle.textContent = '🚀 Initial Setup';
+        authSubtitle.textContent = 'Create an admin account to secure your soundboard.';
+        authSubmitBtn.textContent = 'Create Account';
+        setupFields.style.display = 'block';
+        confirmPasswordInput.required = true;
+    } else if (sessionToken === authData.hash) {
+        // Already logged in for this session
+        showApp();
+    }
+}
+
+function showApp() {
+    isAuthenticated = true;
+    authContainer.style.display = 'none';
+    mainApp.style.display = 'block';
+    loadAppContent();
+}
+
+function logout() {
+    sessionStorage.removeItem('auth_token');
+    window.location.reload();
+}
+
+async function handleAuth(e) {
+    e.preventDefault();
+    authError.style.display = 'none';
+
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (isSetupMode) {
+        const confirmPassword = confirmPasswordInput.value;
+        if (password !== confirmPassword) {
+            authError.textContent = 'Passwords do not match!';
+            authError.style.display = 'block';
+            return;
+        }
+
+        const hash = await hashPassword(password);
+        await saveMetadata('authData', { username, hash });
+        sessionStorage.setItem('auth_token', hash);
+        showApp();
+    } else {
+        const authData = await getMetadata('authData');
+        const hash = await hashPassword(password);
+
+        if (username === authData.username && hash === authData.hash) {
+            sessionStorage.setItem('auth_token', hash);
+            showApp();
+        } else {
+            authError.textContent = 'Invalid username or password.';
+            authError.style.display = 'block';
+        }
+    }
 }
 
 function openDatabase() {
@@ -438,57 +526,76 @@ async function init() {
     try {
         await openDatabase();
         await loadSettings();
-
-        const storedSounds = await getAllSoundsFromDB();
-        sounds = storedSounds.map(sound => {
-            if (sound.blob) {
-                sound.url = URL.createObjectURL(sound.blob);
-            }
-            return sound;
-        });
         
-        if (sounds.length === 0) {
-            await loadDefaultSounds();
-        } else {
-            renderSounds();
+        authForm.addEventListener('submit', handleAuth);
+        logoutBtn.addEventListener('click', logout);
+
+        await checkAuthState();
+
+        // If not authenticated, we stop here and wait for login
+        if (!isAuthenticated && !isSetupMode) {
+            console.log('Waiting for authentication...');
+            return;
         }
 
-        importBtn.addEventListener('click', () => fileInput.click());
+        if (isSetupMode) {
+            console.log('In setup mode...');
+            return;
+        }
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                importFiles(e.target.files);
-                fileInput.value = '';
-            }
-        });
-
-        editModeBtn.addEventListener('click', toggleEditMode);
-
-        addSoundBtn.addEventListener('click', () => fileInput.click());
-
-        clearAllBtn.addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete all sounds?')) {
-                clearAllSounds();
-            }
-        });
-
-        globalVolumeSlider.addEventListener('input', (e) => {
-            globalVolume = e.target.value / 100;
-            volumeValue.textContent = e.target.value + '%';
-            saveSettings();
-        });
-
-        overlapToggle.addEventListener('change', (e) => {
-            allowOverlap = e.target.checked;
-            saveSettings();
-            if (!allowOverlap) {
-                stopAllSounds();
-            }
-        });
-
+        await loadAppContent();
     } catch (error) {
         console.error('Initialization error:', error);
     }
+}
+
+async function loadAppContent() {
+    const storedSounds = await getAllSoundsFromDB();
+    sounds = storedSounds.map(sound => {
+        if (sound.blob) {
+            sound.url = URL.createObjectURL(sound.blob);
+        }
+        return sound;
+    });
+    
+    if (sounds.length === 0) {
+        await loadDefaultSounds();
+    } else {
+        renderSounds();
+    }
+
+    importBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importFiles(e.target.files);
+            fileInput.value = '';
+        }
+    });
+
+    editModeBtn.addEventListener('click', toggleEditMode);
+
+    addSoundBtn.addEventListener('click', () => fileInput.click());
+
+    clearAllBtn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to delete all sounds?')) {
+            clearAllSounds();
+        }
+    });
+
+    globalVolumeSlider.addEventListener('input', (e) => {
+        globalVolume = e.target.value / 100;
+        volumeValue.textContent = e.target.value + '%';
+        saveSettings();
+    });
+
+    overlapToggle.addEventListener('change', (e) => {
+        allowOverlap = e.target.checked;
+        saveSettings();
+        if (!allowOverlap) {
+            stopAllSounds();
+        }
+    });
 }
 
 document.addEventListener('DOMContentLoaded', init);
