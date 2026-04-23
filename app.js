@@ -9,6 +9,7 @@ let currentAudio = null;
 let isEditMode = false;
 let globalVolume = 0.8;
 let allowOverlap = false;
+let showHidden = false;
 
 // Auth State
 let isAuthenticated = false;
@@ -68,6 +69,7 @@ const clearAllBtn = document.getElementById('clearAllBtn');
 const globalVolumeSlider = document.getElementById('globalVolume');
 const volumeValue = document.getElementById('volumeValue');
 const overlapToggle = document.getElementById('overlapToggle');
+const showHiddenToggle = document.getElementById('showHiddenToggle');
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -314,14 +316,18 @@ async function getMetadata(key) {
 async function loadSettings() {
     globalVolume = await getMetadata('globalVolume') ?? 0.8;
     allowOverlap = await getMetadata('allowOverlap') ?? false;
+    showHidden = await getMetadata('showHidden') ?? false;
+    
     globalVolumeSlider.value = globalVolume * 100;
     volumeValue.textContent = Math.round(globalVolume * 100) + '%';
     overlapToggle.checked = allowOverlap;
+    showHiddenToggle.checked = showHidden;
 }
 
 async function saveSettings() {
     await saveMetadata('globalVolume', globalVolume);
     await saveMetadata('allowOverlap', allowOverlap);
+    await saveMetadata('showHidden', showHidden);
 }
 
 function getSoundIcon(filename) {
@@ -338,14 +344,19 @@ function getSoundIcon(filename) {
 
 function createSoundCard(sound) {
     const card = document.createElement('div');
-    card.className = 'sound-card';
+    card.className = `sound-card ${sound.hidden ? 'hidden-card' : ''}`;
     card.dataset.id = sound.id;
+
+    if (sound.hidden && !showHidden) {
+        card.style.display = 'none';
+    }
 
     card.innerHTML = `
         <span class="sound-icon">${getSoundIcon(sound.name)}</span>
         <span class="sound-name">${sound.name}</span>
         <div class="sound-actions">
             <button class="btn-edit" title="Rename">✏️</button>
+            <button class="btn-hide" title="${sound.hidden ? 'Unhide' : 'Hide'}">${sound.hidden ? '👁️' : '🙈'}</button>
             <button class="btn-delete" title="Delete">🗑️</button>
         </div>
     `;
@@ -356,12 +367,15 @@ function createSoundCard(sound) {
             if (action) {
                 if (action.classList.contains('btn-edit')) {
                     showRenameModal(sound);
+                } else if (action.classList.contains('btn-hide')) {
+                    toggleHideSound(sound.id);
                 } else if (action.classList.contains('btn-delete')) {
                     deleteSound(sound.id);
                 }
             }
             return;
         }
+        if (sound.hidden && !showHidden) return;
         playSound(sound);
     });
 
@@ -484,6 +498,7 @@ async function importFiles(files) {
                 url: url,   
                 volume: 1,
                 loop: false,
+                isDefault: false, // Mark as custom
                 fileName: file.name,
                 fileSize: file.size
             };
@@ -502,12 +517,22 @@ async function importFiles(files) {
 
 async function deleteSound(id) {
     const sound = sounds.find(s => s.id === id);
-    if (sound && sound.url) {
+    if (!sound) return;
+
+    if (sound.url) {
         URL.revokeObjectURL(sound.url);
     }
 
+    if (sound.isDefault) {
+        // Just remove from current session memory
+        console.log(`Temporarily removing default sound: ${sound.name}`);
+    } else {
+        // Permanently delete custom sound from DB
+        await deleteSoundFromDB(id);
+        console.log(`Permanently deleted custom sound: ${sound.name}`);
+    }
+
     sounds = sounds.filter(s => s.id !== id);
-    await deleteSoundFromDB(id);
     renderSounds();
 }
 
@@ -520,15 +545,27 @@ async function renameSound(id, newName) {
     }
 }
 
+async function toggleHideSound(id) {
+    const sound = sounds.find(s => s.id === id);
+    if (sound) {
+        sound.hidden = !sound.hidden;
+        await saveSoundToDB(sound);
+        renderSounds();
+    }
+}
+
 async function clearAllSounds() {
     for (const sound of sounds) {
         if (sound.url) {
             URL.revokeObjectURL(sound.url);
         }
-        await deleteSoundFromDB(sound.id);
+        if (!sound.isDefault) {
+            // Only delete custom sounds from DB, preserve defaults
+            await deleteSoundFromDB(sound.id);
+        }
     }
     sounds = [];
-    await saveMetadata('defaultsLoaded', false); // Reset defaults flag on clear
+    await saveMetadata('defaultsLoaded', false);
     renderSounds();
 }
 
@@ -551,6 +588,7 @@ async function loadDefaultSounds() {
                 url: URL.createObjectURL(blob),
                 volume: 1,
                 loop: false,
+                isDefault: true, // Mark as default
                 fileName: def.name + '.mp3',
                 fileSize: blob.size
             };
@@ -665,19 +703,21 @@ async function init() {
 }
 
 async function loadAppContent() {
+    // Load custom sounds from DB
     const storedSounds = await getAllSoundsFromDB();
-    sounds = storedSounds.map(sound => {
-        if (sound.blob) {
-            sound.url = URL.createObjectURL(sound.blob);
-        }
-        return sound;
-    });
+    sounds = storedSounds
+        .filter(s => !s.isDefault) // Only load custom sounds from DB
+        .map(sound => {
+            if (sound.blob) {
+                sound.url = URL.createObjectURL(sound.blob);
+            }
+            return sound;
+        });
     
-    if (sounds.length === 0) {
-        await loadDefaultSounds();
-    } else {
-        renderSounds();
-    }
+    // Always reload default sounds fresh (they persist in server, not DB)
+    await loadDefaultSounds();
+    
+    renderSounds();
 
     importBtn.addEventListener('click', () => fileInput.click());
 
@@ -702,6 +742,12 @@ async function loadAppContent() {
         globalVolume = e.target.value / 100;
         volumeValue.textContent = e.target.value + '%';
         saveSettings();
+    });
+
+    showHiddenToggle.addEventListener('change', (e) => {
+        showHidden = e.target.checked;
+        saveSettings();
+        renderSounds();
     });
 
     overlapToggle.addEventListener('change', (e) => {
