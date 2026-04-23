@@ -354,6 +354,11 @@ function createSoundCard(sound) {
     card.innerHTML = `
         <span class="sound-icon">${getSoundIcon(sound.name)}</span>
         <span class="sound-name">${sound.name}</span>
+        <div class="playing-indicator" style="display: none;">
+            <div class="bar"></div>
+            <div class="bar"></div>
+            <div class="bar"></div>
+        </div>
         <div class="sound-actions">
             <button class="btn-edit" title="Rename">✏️</button>
             <button class="btn-hide" title="${sound.hidden ? 'Unhide' : 'Hide'}">${sound.hidden ? '👁️' : '🙈'}</button>
@@ -675,7 +680,7 @@ async function init() {
     const offlineBadge = document.getElementById('offlineBadge');
     const updateOnlineStatus = () => {
         if (offlineBadge) {
-            offlineBadge.style.display = navigator.onLine ? 'none' : 'inline-block';
+            offlineBadge.style.display = navigator.onLine ? 'none' : 'flex';
         }
     };
     window.addEventListener('online', updateOnlineStatus);
