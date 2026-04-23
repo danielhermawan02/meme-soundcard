@@ -37,6 +37,7 @@
             <h1>🔊 Meme Soundboard</h1>
             <div class="header-controls">
                 <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+                <button id="securityBtn" class="btn btn-secondary">Security</button>
                 <button id="editModeBtn" class="btn btn-secondary">Edit Mode</button>
                 <button id="importBtn" class="btn btn-primary">Import Sounds</button>
             </div>
@@ -69,8 +70,42 @@
         </footer>
     </div>
 
+    <div class="modal-overlay" id="securityModal">
+        <div class="modal">
+            <h2>🔐 Security Settings</h2>
+            <p>Update your username or password.</p>
+            <form id="securityForm">
+                <div class="form-group">
+                    <label for="currentPassword">Current Password</label>
+                    <input type="password" id="currentPassword" required autocomplete="current-password">
+                </div>
+                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+                <div class="form-group">
+                    <label for="newUsername">New Username</label>
+                    <input type="text" id="newUsername" placeholder="Enter new username">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" autocomplete="new-password" placeholder="Leave blank to keep current">
+                </div>
+                <div class="form-group">
+                    <label for="confirmNewPassword">Confirm New Password</label>
+                    <input type="password" id="confirmNewPassword" autocomplete="new-password">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" id="exportConfigBtn">Export Config</button>
+                    <button type="button" class="btn btn-secondary" id="cancelSecurity">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Credentials</button>
+                </div>
+                <p id="securityError" class="error-text" style="display: none;"></p>
+                <p id="securitySuccess" style="display: none; color: var(--success-color); font-size: 0.85rem; margin-top: 15px; text-align: center;">Update successful!</p>
+            </form>
+        </div>
+    </div>
+
     <input type="file" id="fileInput" multiple accept=".mp3,.wav,.ogg" style="display: none;">
 
+    <script src="config.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

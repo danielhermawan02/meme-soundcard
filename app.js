@@ -26,6 +26,13 @@ const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
 const confirmPasswordInput = document.getElementById('confirmPassword');
 const logoutBtn = document.getElementById('logoutBtn');
+const securityBtn = document.getElementById('securityBtn');
+const securityModal = document.getElementById('securityModal');
+const securityForm = document.getElementById('securityForm');
+const cancelSecurity = document.getElementById('cancelSecurity');
+const exportConfigBtn = document.getElementById('exportConfigBtn');
+const securityError = document.getElementById('securityError');
+const securitySuccess = document.getElementById('securitySuccess');
 
 const DEFAULT_SOUNDS = [
     { name: 'A Few Moments Later', url: 'assets/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3' },
@@ -75,8 +82,24 @@ async function hashPassword(password) {
 }
 
 async function checkAuthState() {
-    const authData = await getMetadata('authData');
     const sessionToken = sessionStorage.getItem('auth_token');
+
+    // Priority 1: Global Configuration (for Vercel/Public deployment)
+    if (typeof GLOBAL_AUTH !== 'undefined' && GLOBAL_AUTH.enabled) {
+        isSetupMode = false;
+        authTitle.textContent = '🔐 Member Access';
+        authSubtitle.textContent = 'Enter the global credentials to access this soundboard.';
+        authSubmitBtn.textContent = 'Login';
+        setupFields.style.display = 'none';
+
+        if (sessionToken === GLOBAL_AUTH.hash) {
+            showApp();
+        }
+        return;
+    }
+
+    // Priority 2: Local Database (for development/private use)
+    const authData = await getMetadata('authData');
 
     if (!authData) {
         // First run - Setup mode
@@ -124,10 +147,23 @@ async function handleAuth(e) {
         sessionStorage.setItem('auth_token', hash);
         showApp();
     } else {
-        const authData = await getMetadata('authData');
         const hash = await hashPassword(password);
+        let isValid = false;
 
-        if (username === authData.username && hash === authData.hash) {
+        // Check against Global first if enabled
+        if (typeof GLOBAL_AUTH !== 'undefined' && GLOBAL_AUTH.enabled) {
+            if (username === GLOBAL_AUTH.username && hash === GLOBAL_AUTH.hash) {
+                isValid = true;
+            }
+        } else {
+            // Check against Local DB
+            const authData = await getMetadata('authData');
+            if (username === authData.username && hash === authData.hash) {
+                isValid = true;
+            }
+        }
+
+        if (isValid) {
             sessionStorage.setItem('auth_token', hash);
             showApp();
         } else {
@@ -135,6 +171,72 @@ async function handleAuth(e) {
             authError.style.display = 'block';
         }
     }
+}
+
+async function handleSecurityUpdate(e) {
+    e.preventDefault();
+    securityError.style.display = 'none';
+    securitySuccess.style.display = 'none';
+
+    const authData = await getMetadata('authData');
+    const currentPassword = document.getElementById('currentPassword').value;
+    const currentHash = await hashPassword(currentPassword);
+
+    if (currentHash !== authData.hash) {
+        securityError.textContent = 'Incorrect current password!';
+        securityError.style.display = 'block';
+        return;
+    }
+
+    const newUsername = document.getElementById('newUsername').value.trim();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+    if (newPassword && newPassword !== confirmNewPassword) {
+        securityError.textContent = 'New passwords do not match!';
+        securityError.style.display = 'block';
+        return;
+    }
+
+    const updatedData = { ...authData };
+    if (newUsername) updatedData.username = newUsername;
+    if (newPassword) updatedData.hash = await hashPassword(newPassword);
+
+    await saveMetadata('authData', updatedData);
+    if (newPassword) {
+        sessionStorage.setItem('auth_token', updatedData.hash);
+    }
+
+    securitySuccess.style.display = 'block';
+    setTimeout(() => {
+        securityModal.classList.remove('visible');
+        securityForm.reset();
+        securitySuccess.style.display = 'none';
+    }, 1500);
+}
+
+async function exportConfig() {
+    const authData = await getMetadata('authData');
+    if (!authData) {
+        alert('Please set up your account first before exporting.');
+        return;
+    }
+
+    const configCode = `const GLOBAL_AUTH = {
+    enabled: true,
+    username: '${authData.username}',
+    hash: '${authData.hash}'
+};`;
+
+    const blob = new Blob([configCode], { type: 'text/javascript' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config.js';
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    alert('Config file downloaded! Replace your existing config.js with this file to lock the site for everyone.');
 }
 
 function openDatabase() {
@@ -529,6 +631,19 @@ async function init() {
         
         authForm.addEventListener('submit', handleAuth);
         logoutBtn.addEventListener('click', logout);
+
+        securityBtn.addEventListener('click', () => {
+            securityModal.classList.add('visible');
+            document.getElementById('currentPassword').focus();
+        });
+
+        cancelSecurity.addEventListener('click', () => {
+            securityModal.classList.remove('visible');
+            securityForm.reset();
+        });
+
+        securityForm.addEventListener('submit', handleSecurityUpdate);
+        exportConfigBtn.addEventListener('click', exportConfig);
 
         await checkAuthState();
 
