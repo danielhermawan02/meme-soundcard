@@ -72,46 +72,81 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-// Security: Hash password using SHA-256
-// Includes a fallback for non-secure contexts (like testing on phone via HTTP)
-async function hashPassword(password) {
-    // 1. Try standard Crypto API (Requires HTTPS/Secure Context)
-    if (window.isSecureContext && crypto.subtle) {
-        try {
-            const msgUint8 = new TextEncoder().encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        } catch (e) {
-            console.error('Crypto error:', e);
-        }
-    }
-
-    // 2. Fallback: Simple hashing for non-secure contexts (HTTP/IP testing)
-    // This ensures your phone can log in during local testing without HTTPS
-    console.warn('Using fallback hashing (Non-secure context)');
-    let hash = 0;
-    for (let i = 0; i < password.length; i++) {
-        const char = password.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return 'fallback-' + Math.abs(hash).toString(16);
-}
-
-// Special check for default credentials in fallback mode
-function checkCredentials(inputUser, inputHash, globalUser, globalHash) {
-    // If we are in a secure context, hashes must match exactly
-    if (window.isSecureContext && crypto.subtle) {
-        return inputUser === globalUser && inputHash === globalHash;
+// Standalone SHA-256 implementation (Works in all browsers, HTTP and HTTPS)
+function sha256(ascii) {
+    function rightRotate(value, amount) {
+        return (value >>> amount) | (value << (32 - amount));
     }
     
-    // If we are in HTTP/Mobile testing, we allow 'admin'/'admin' specifically 
-    // to bypass the SHA-256 vs Fallback hash mismatch
-    if (inputUser === 'admin' && inputHash === 'fallback-583ec7') { // '583ec7' is 'admin' in fallback
-        return true;
-    }
+    let mathPow = Math.pow;
+    let maxWord = mathPow(2, 32);
+    let result = '';
+    let words = [];
+    let asciiLength = ascii.length;
+    let hash = sha256.h = sha256.h || [];
+    let k = sha256.k = sha256.k || [];
+    let primeCounter = k.length;
 
+    let isLetter = {};
+    for (let i = 2; primeCounter < 64; i++) {
+        if (!isLetter[i]) {
+            for (let j = i * i; j < 311; j += i) {
+                isLetter[j] = 1;
+            }
+            hash[primeCounter] = (mathPow(i, 0.5) * maxWord) | 0;
+            k[primeCounter++] = (mathPow(i, 1 / 3) * maxWord) | 0;
+        }
+    }
+    
+    ascii += '\x80';
+    while (ascii.length % 64 - 56) ascii += '\x00';
+    
+    for (let i = 0; i < ascii.length; i++) {
+        let j = ascii.charCodeAt(i);
+        if (j >> 8) return; // only ascii chars
+        words[i >> 2] |= j << ((3 - i) % 4) * 8;
+    }
+    words[words.length] = ((asciiLength * 8) / maxWord) | 0;
+    words[words.length] = (asciiLength * 8) | 0;
+    
+    for (let j = 0; j < words.length; ) {
+        let w = words.slice(j, (j += 16));
+        let oldHash = hash;
+        hash = hash.slice(0, 8);
+        
+        for (let i = 0; i < 64; i++) {
+            let w15 = w[i - 15], w2 = w[i - 2];
+            let s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
+            let s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
+            let ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
+            let maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+            let t1 = hash[7] + (rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25)) + ch + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + s0 + w[i - 7] + s1) | 0);
+            let t2 = (rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22)) + maj;
+            
+            hash = [(t1 + t2) | 0].concat(hash);
+            hash[4] = (hash[4] + t1) | 0;
+        }
+        
+        for (let i = 0; i < 8; i++) {
+            hash[i] = (hash[i] + oldHash[i]) | 0;
+        }
+    }
+    
+    for (let i = 0; i < 8; i++) {
+        for (let j = 3; j + 1; j--) {
+            let b = (hash[i] >> (j * 8)) & 255;
+            result += (b < 16 ? '0' : '') + b.toString(16);
+        }
+    }
+    return result;
+}
+
+async function hashPassword(password) {
+    return sha256(password);
+}
+
+// Check credentials (No longer needs fallback logic)
+function checkCredentials(inputUser, inputHash, globalUser, globalHash) {
     return inputUser === globalUser && inputHash === globalHash;
 }
 
@@ -153,7 +188,7 @@ async function handleAuth(e) {
     const password = passwordInput.value;
     const hash = await hashPassword(password);
 
-    console.log('Login Attempt:', { username, hash, isSecure: window.isSecureContext });
+    console.log('Login Attempt:', { username, isSecure: window.isSecureContext });
 
     if (typeof GLOBAL_AUTH !== 'undefined') {
         if (checkCredentials(username, hash, GLOBAL_AUTH.username, GLOBAL_AUTH.hash)) {
@@ -161,9 +196,6 @@ async function handleAuth(e) {
             showApp();
         } else {
             authError.textContent = 'Invalid username or password.';
-            if (!window.isSecureContext) {
-                authError.textContent += ' (Note: Using non-secure connection)';
-            }
             authError.style.display = 'block';
         }
     }
