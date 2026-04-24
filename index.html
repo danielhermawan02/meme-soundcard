@@ -26,12 +26,6 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" required autocomplete="current-password">
                 </div>
-                <div id="setupFields" style="display: none;">
-                    <div class="form-group">
-                        <label for="confirmPassword">Confirm Password</label>
-                        <input type="password" id="confirmPassword" autocomplete="new-password">
-                    </div>
-                </div>
                 <button type="submit" id="authSubmitBtn" class="btn btn-primary w-100">Login</button>
                 <p id="authError" class="error-text" style="display: none;">Invalid credentials. Try again.</p>
             </form>
@@ -82,8 +76,8 @@
 
     <div class="modal-overlay" id="securityModal">
         <div class="modal">
-            <h2>🔐 Security Settings</h2>
-            <p>Update your username or password.</p>
+            <h2>🔐 Master Key Settings</h2>
+            <p style="color: var(--danger); font-size: 0.8rem; margin-bottom: 20px;">⚠️ Changes here only become global after you export and redeploy config.js.</p>
             <form id="securityForm">
                 <div class="form-group">
                     <label for="currentPassword">Current Password</label>

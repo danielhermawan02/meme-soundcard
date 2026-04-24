@@ -13,7 +13,6 @@ let showHidden = false;
 
 // Auth State
 let isAuthenticated = false;
-let isSetupMode = false;
 
 const authContainer = document.getElementById('authContainer');
 const mainApp = document.getElementById('mainApp');
@@ -22,10 +21,8 @@ const authTitle = document.getElementById('authTitle');
 const authSubtitle = document.getElementById('authSubtitle');
 const authSubmitBtn = document.getElementById('authSubmitBtn');
 const authError = document.getElementById('authError');
-const setupFields = document.getElementById('setupFields');
 const usernameInput = document.getElementById('username');
 const passwordInput = document.getElementById('password');
-const confirmPasswordInput = document.getElementById('confirmPassword');
 const logoutBtn = document.getElementById('logoutBtn');
 const securityBtn = document.getElementById('securityBtn');
 const securityModal = document.getElementById('securityModal');
@@ -86,34 +83,18 @@ async function hashPassword(password) {
 async function checkAuthState() {
     const sessionToken = sessionStorage.getItem('auth_token');
 
-    // Priority 1: Global Configuration (for Vercel/Public deployment)
-    if (typeof GLOBAL_AUTH !== 'undefined' && GLOBAL_AUTH.enabled) {
-        isSetupMode = false;
-        authTitle.textContent = '🔐 Member Access';
-        authSubtitle.textContent = 'Enter the global credentials to access this soundboard.';
+    // Global Configuration is now mandatory for access
+    if (typeof GLOBAL_AUTH !== 'undefined') {
+        authTitle.textContent = '🔐 Secure Access';
+        authSubtitle.textContent = 'Sign in to access your private soundboard.';
         authSubmitBtn.textContent = 'Login';
-        setupFields.style.display = 'none';
 
         if (sessionToken === GLOBAL_AUTH.hash) {
             showApp();
         }
-        return;
-    }
-
-    // Priority 2: Local Database (for development/private use)
-    const authData = await getMetadata('authData');
-
-    if (!authData) {
-        // First run - Setup mode
-        isSetupMode = true;
-        authTitle.textContent = '🚀 Initial Setup';
-        authSubtitle.textContent = 'Create an admin account to secure your soundboard.';
-        authSubmitBtn.textContent = 'Create Account';
-        setupFields.style.display = 'block';
-        confirmPasswordInput.required = true;
-    } else if (sessionToken === authData.hash) {
-        // Already logged in for this session
-        showApp();
+    } else {
+        authError.textContent = 'Configuration Error: GLOBAL_AUTH not found.';
+        authError.style.display = 'block';
     }
 }
 
@@ -135,37 +116,10 @@ async function handleAuth(e) {
 
     const username = usernameInput.value.trim();
     const password = passwordInput.value;
+    const hash = await hashPassword(password);
 
-    if (isSetupMode) {
-        const confirmPassword = confirmPasswordInput.value;
-        if (password !== confirmPassword) {
-            authError.textContent = 'Passwords do not match!';
-            authError.style.display = 'block';
-            return;
-        }
-
-        const hash = await hashPassword(password);
-        await saveMetadata('authData', { username, hash });
-        sessionStorage.setItem('auth_token', hash);
-        showApp();
-    } else {
-        const hash = await hashPassword(password);
-        let isValid = false;
-
-        // Check against Global first if enabled
-        if (typeof GLOBAL_AUTH !== 'undefined' && GLOBAL_AUTH.enabled) {
-            if (username === GLOBAL_AUTH.username && hash === GLOBAL_AUTH.hash) {
-                isValid = true;
-            }
-        } else {
-            // Check against Local DB
-            const authData = await getMetadata('authData');
-            if (username === authData.username && hash === authData.hash) {
-                isValid = true;
-            }
-        }
-
-        if (isValid) {
+    if (typeof GLOBAL_AUTH !== 'undefined') {
+        if (username === GLOBAL_AUTH.username && hash === GLOBAL_AUTH.hash) {
             sessionStorage.setItem('auth_token', hash);
             showApp();
         } else {
@@ -180,11 +134,11 @@ async function handleSecurityUpdate(e) {
     securityError.style.display = 'none';
     securitySuccess.style.display = 'none';
 
-    const authData = await getMetadata('authData');
+    // Verify with current global password
     const currentPassword = document.getElementById('currentPassword').value;
     const currentHash = await hashPassword(currentPassword);
 
-    if (currentHash !== authData.hash) {
+    if (currentHash !== GLOBAL_AUTH.hash) {
         securityError.textContent = 'Incorrect current password!';
         securityError.style.display = 'block';
         return;
@@ -200,34 +154,33 @@ async function handleSecurityUpdate(e) {
         return;
     }
 
-    const updatedData = { ...authData };
-    if (newUsername) updatedData.username = newUsername;
-    if (newPassword) updatedData.hash = await hashPassword(newPassword);
+    // Prepare new config data
+    const updatedData = { 
+        username: newUsername || GLOBAL_AUTH.username,
+        hash: newPassword ? await hashPassword(newPassword) : GLOBAL_AUTH.hash
+    };
 
-    await saveMetadata('authData', updatedData);
-    if (newPassword) {
-        sessionStorage.setItem('auth_token', updatedData.hash);
-    }
+    // To make this permanent for THIS user session
+    sessionStorage.setItem('auth_token', updatedData.hash);
+    
+    // We update the GLOBAL_AUTH object in memory (temporary)
+    GLOBAL_AUTH.username = updatedData.username;
+    GLOBAL_AUTH.hash = updatedData.hash;
 
+    securitySuccess.textContent = 'Success! Click "Export Config" to save globally.';
     securitySuccess.style.display = 'block';
-    setTimeout(() => {
-        securityModal.classList.remove('visible');
-        securityForm.reset();
-        securitySuccess.style.display = 'none';
-    }, 1500);
 }
 
 async function exportConfig() {
-    const authData = await getMetadata('authData');
-    if (!authData) {
-        alert('Please set up your account first before exporting.');
-        return;
-    }
-
-    const configCode = `const GLOBAL_AUTH = {
-    enabled: true,
-    username: '${authData.username}',
-    hash: '${authData.hash}'
+    const configCode = `/**
+ * GLOBAL CONFIGURATION (Master Key)
+ * 
+ * This file controls access for EVERYONE who visits your soundboard.
+ * Only you (the owner of the code) can change this file and redeploy.
+ */
+const GLOBAL_AUTH = {
+    username: '${GLOBAL_AUTH.username}',
+    hash: '${GLOBAL_AUTH.hash}'
 };`;
 
     const blob = new Blob([configCode], { type: 'text/javascript' });
@@ -238,7 +191,7 @@ async function exportConfig() {
     a.click();
     URL.revokeObjectURL(url);
     
-    alert('Config file downloaded! Replace your existing config.js with this file to lock the site for everyone.');
+    alert('Config file downloaded! Replace your existing config.js with this file and redeploy to apply changes for everyone.');
 }
 
 function openDatabase() {

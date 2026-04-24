@@ -1,14 +1,12 @@
 /**
- * GLOBAL CONFIGURATION
+ * GLOBAL CONFIGURATION (Master Key)
  * 
- * To make your username and password apply to everyone who visits your site:
- * 1. Set 'enabled' to true.
- * 2. Set 'username' to your desired username.
- * 3. Run the app locally, set your password, and use the "Export Config" 
- *    button in Security Settings to get your 'hash'.
+ * This file controls access for EVERYONE who visits your soundboard.
+ * Only you (the owner of the code) can change this file and redeploy.
  */
 const GLOBAL_AUTH = {
-    enabled: false, // Set to true to lock the app for everyone
     username: 'admin',
-    hash: '' // The SHA-256 hash of your password
+    // Default password is 'admin'. 
+    // Change this by using the "Export Config" button in Security Settings and redeploying.
+    hash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' 
 };
