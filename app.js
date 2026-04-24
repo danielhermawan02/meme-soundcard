@@ -507,7 +507,6 @@ async function init() {
 
 async function loadAppContent() {
     // 1. Cleanup: Remove any legacy default sounds from the DB 
-    // (We now load them fresh from the server every time)
     const storedSounds = await getAllSoundsFromDB();
     for (const s of storedSounds) {
         if (s.isDefault) {

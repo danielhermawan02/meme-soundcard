@@ -1,10 +1,9 @@
-const CACHE_NAME = 'meme-soundboard-v1';
+const CACHE_NAME = 'meme-soundboard-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './styles.css',
   './app.js',
-  './config.js',
   './manifest.json',
   './assets/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3',
   './assets/sounds/angry-birds-plush-yeah-sfx.mp3',
