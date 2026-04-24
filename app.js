@@ -11,27 +11,6 @@ let globalVolume = 0.8;
 let allowOverlap = false;
 let showHidden = false;
 
-// Auth State
-let isAuthenticated = false;
-
-const authContainer = document.getElementById('authContainer');
-const mainApp = document.getElementById('mainApp');
-const authForm = document.getElementById('authForm');
-const authTitle = document.getElementById('authTitle');
-const authSubtitle = document.getElementById('authSubtitle');
-const authSubmitBtn = document.getElementById('authSubmitBtn');
-const authError = document.getElementById('authError');
-const usernameInput = document.getElementById('username');
-const passwordInput = document.getElementById('password');
-const logoutBtn = document.getElementById('logoutBtn');
-const securityBtn = document.getElementById('securityBtn');
-const securityModal = document.getElementById('securityModal');
-const securityForm = document.getElementById('securityForm');
-const cancelSecurity = document.getElementById('cancelSecurity');
-const exportConfigBtn = document.getElementById('exportConfigBtn');
-const securityError = document.getElementById('securityError');
-const securitySuccess = document.getElementById('securitySuccess');
-
 const DEFAULT_SOUNDS = [
     { name: 'A Few Moments Later', url: 'assets/sounds/a-few-moments-later-sponge-bob-sfx-fun.mp3' },
     { name: 'Angry Birds Yeah', url: 'assets/sounds/angry-birds-plush-yeah-sfx.mp3' },
@@ -70,200 +49,6 @@ const showHiddenToggle = document.getElementById('showHiddenToggle');
 
 function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-// Standalone SHA-256 implementation (Works in all browsers, HTTP and HTTPS)
-function sha256(ascii) {
-    function rightRotate(value, amount) {
-        return (value >>> amount) | (value << (32 - amount));
-    }
-    
-    let mathPow = Math.pow;
-    let maxWord = mathPow(2, 32);
-    let result = '';
-    let words = [];
-    let asciiLength = ascii.length;
-    let hash = sha256.h = sha256.h || [];
-    let k = sha256.k = sha256.k || [];
-    let primeCounter = k.length;
-
-    let isLetter = {};
-    for (let i = 2; primeCounter < 64; i++) {
-        if (!isLetter[i]) {
-            for (let j = i * i; j < 311; j += i) {
-                isLetter[j] = 1;
-            }
-            hash[primeCounter] = (mathPow(i, 0.5) * maxWord) | 0;
-            k[primeCounter++] = (mathPow(i, 1 / 3) * maxWord) | 0;
-        }
-    }
-    
-    ascii += '\x80';
-    while (ascii.length % 64 - 56) ascii += '\x00';
-    
-    for (let i = 0; i < ascii.length; i++) {
-        let j = ascii.charCodeAt(i);
-        if (j >> 8) return; // only ascii chars
-        words[i >> 2] |= j << ((3 - i) % 4) * 8;
-    }
-    words[words.length] = ((asciiLength * 8) / maxWord) | 0;
-    words[words.length] = (asciiLength * 8) | 0;
-    
-    for (let j = 0; j < words.length; ) {
-        let w = words.slice(j, (j += 16));
-        let oldHash = hash;
-        hash = hash.slice(0, 8);
-        
-        for (let i = 0; i < 64; i++) {
-            let w15 = w[i - 15], w2 = w[i - 2];
-            let s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
-            let s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
-            let ch = (hash[4] & hash[5]) ^ (~hash[4] & hash[6]);
-            let maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
-            let t1 = hash[7] + (rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25)) + ch + k[i] + (w[i] = (i < 16) ? w[i] : (w[i - 16] + s0 + w[i - 7] + s1) | 0);
-            let t2 = (rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22)) + maj;
-            
-            hash = [(t1 + t2) | 0].concat(hash);
-            hash[4] = (hash[4] + t1) | 0;
-        }
-        
-        for (let i = 0; i < 8; i++) {
-            hash[i] = (hash[i] + oldHash[i]) | 0;
-        }
-    }
-    
-    for (let i = 0; i < 8; i++) {
-        for (let j = 3; j + 1; j--) {
-            let b = (hash[i] >> (j * 8)) & 255;
-            result += (b < 16 ? '0' : '') + b.toString(16);
-        }
-    }
-    return result;
-}
-
-async function hashPassword(password) {
-    return sha256(password);
-}
-
-// Check credentials (No longer needs fallback logic)
-function checkCredentials(inputUser, inputHash, globalUser, globalHash) {
-    return inputUser === globalUser && inputHash === globalHash;
-}
-
-async function checkAuthState() {
-    const sessionToken = sessionStorage.getItem('auth_token');
-
-    // Global Configuration is now mandatory for access
-    if (typeof GLOBAL_AUTH !== 'undefined') {
-        authTitle.textContent = '🔐 Secure Access';
-        authSubtitle.textContent = 'Sign in to access your private soundboard.';
-        authSubmitBtn.textContent = 'Login';
-
-        if (sessionToken === GLOBAL_AUTH.hash) {
-            showApp();
-        }
-    } else {
-        authError.textContent = 'Configuration Error: GLOBAL_AUTH not found.';
-        authError.style.display = 'block';
-    }
-}
-
-function showApp() {
-    isAuthenticated = true;
-    authContainer.style.display = 'none';
-    mainApp.style.display = 'block';
-    loadAppContent();
-}
-
-function logout() {
-    sessionStorage.removeItem('auth_token');
-    window.location.reload();
-}
-
-async function handleAuth(e) {
-    e.preventDefault();
-    authError.style.display = 'none';
-
-    const username = usernameInput.value.trim();
-    const password = passwordInput.value;
-    const hash = await hashPassword(password);
-
-    console.log('Login Attempt:', { username, isSecure: window.isSecureContext });
-
-    if (typeof GLOBAL_AUTH !== 'undefined') {
-        if (checkCredentials(username, hash, GLOBAL_AUTH.username, GLOBAL_AUTH.hash)) {
-            sessionStorage.setItem('auth_token', hash);
-            showApp();
-        } else {
-            authError.textContent = 'Invalid username or password.';
-            authError.style.display = 'block';
-        }
-    }
-}
-
-async function handleSecurityUpdate(e) {
-    e.preventDefault();
-    securityError.style.display = 'none';
-    securitySuccess.style.display = 'none';
-
-    // Verify with current global password
-    const currentPassword = document.getElementById('currentPassword').value;
-    const currentHash = await hashPassword(currentPassword);
-
-    if (currentHash !== GLOBAL_AUTH.hash) {
-        securityError.textContent = 'Incorrect current password!';
-        securityError.style.display = 'block';
-        return;
-    }
-
-    const newUsername = document.getElementById('newUsername').value.trim();
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
-
-    if (newPassword && newPassword !== confirmNewPassword) {
-        securityError.textContent = 'New passwords do not match!';
-        securityError.style.display = 'block';
-        return;
-    }
-
-    // Prepare new config data
-    const updatedData = { 
-        username: newUsername || GLOBAL_AUTH.username,
-        hash: newPassword ? await hashPassword(newPassword) : GLOBAL_AUTH.hash
-    };
-
-    // To make this permanent for THIS user session
-    sessionStorage.setItem('auth_token', updatedData.hash);
-    
-    // We update the GLOBAL_AUTH object in memory (temporary)
-    GLOBAL_AUTH.username = updatedData.username;
-    GLOBAL_AUTH.hash = updatedData.hash;
-
-    securitySuccess.textContent = 'Success! Click "Export Config" to save globally.';
-    securitySuccess.style.display = 'block';
-}
-
-async function exportConfig() {
-    const configCode = `/**
- * GLOBAL CONFIGURATION (Master Key)
- * 
- * This file controls access for EVERYONE who visits your soundboard.
- * Only you (the owner of the code) can change this file and redeploy.
- */
-const GLOBAL_AUTH = {
-    username: '${GLOBAL_AUTH.username}',
-    hash: '${GLOBAL_AUTH.hash}'
-};`;
-
-    const blob = new Blob([configCode], { type: 'text/javascript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'config.js';
-    a.click();
-    URL.revokeObjectURL(url);
-    
-    alert('Config file downloaded! Replace your existing config.js with this file and redeploy to apply changes for everyone.');
 }
 
 function openDatabase() {
@@ -470,11 +255,9 @@ function playSound(sound) {
                 }
             }).catch(err => {
                 console.error(`Playback failed for ${sound.name}:`, err);
-                // Handle cases where the URL might have become invalid
                 if (err.name === 'NotSupportedError' || err.name === 'EncodingError') {
                     console.log('Attempting to refresh URL and retry...');
                     sound.url = URL.createObjectURL(sound.blob);
-                    // Don't recursive indefinitely, just one retry
                 }
             });
         }
@@ -716,35 +499,6 @@ async function init() {
         await openDatabase();
         await loadSettings();
         
-        authForm.addEventListener('submit', handleAuth);
-        logoutBtn.addEventListener('click', logout);
-
-        securityBtn.addEventListener('click', () => {
-            securityModal.classList.add('visible');
-            document.getElementById('currentPassword').focus();
-        });
-
-        cancelSecurity.addEventListener('click', () => {
-            securityModal.classList.remove('visible');
-            securityForm.reset();
-        });
-
-        securityForm.addEventListener('submit', handleSecurityUpdate);
-        exportConfigBtn.addEventListener('click', exportConfig);
-
-        await checkAuthState();
-
-        // If not authenticated, we stop here and wait for login
-        if (!isAuthenticated && !isSetupMode) {
-            console.log('Waiting for authentication...');
-            return;
-        }
-
-        if (isSetupMode) {
-            console.log('In setup mode...');
-            return;
-        }
-
         await loadAppContent();
     } catch (error) {
         console.error('Initialization error:', error);

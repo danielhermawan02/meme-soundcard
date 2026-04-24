@@ -13,31 +13,10 @@
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3659/3659899.png">
 </head>
 <body>
-    <div id="authContainer" class="auth-container">
-        <div class="auth-card">
-            <h2 id="authTitle">🔐 Secure Access</h2>
-            <p id="authSubtitle">Please sign in to access the soundboard.</p>
-            <form id="authForm">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required autocomplete="current-password">
-                </div>
-                <button type="submit" id="authSubmitBtn" class="btn btn-primary w-100">Login</button>
-                <p id="authError" class="error-text" style="display: none;">Invalid credentials. Try again.</p>
-            </form>
-        </div>
-    </div>
-
-    <div class="app-container" id="mainApp" style="display: none;">
+    <div class="app-container" id="mainApp">
         <header class="app-header">
             <h1>🔊 Meme Soundboard <span id="offlineBadge" style="display: none;">Offline</span></h1>
             <div class="header-controls">
-                <button id="logoutBtn" class="btn btn-secondary">Logout</button>
-                <button id="securityBtn" class="btn btn-secondary">Security</button>
                 <button id="editModeBtn" class="btn btn-secondary">Edit Mode</button>
                 <button id="importBtn" class="btn btn-primary">Import Sounds</button>
             </div>
@@ -62,54 +41,19 @@
         </div>
 
         <div class="edit-toolbar" id="editToolbar">
-            <button id="addSoundBtn" class="btn btn-add">+ Add Sound</button>
-            <button id="clearAllBtn" class="btn btn-danger">Clear All</button>
-        </div>
-
-        <main class="soundboard-grid" id="soundboardGrid">
-        </main>
-
-        <footer class="app-footer">
-            <p>Tip: Click buttons to play sounds | Toggle Edit Mode to manage</p>
-        </footer>
+        <button id="addSoundBtn" class="btn btn-add">+ Add Sound</button>
+        <button id="clearAllBtn" class="btn btn-danger">Clear All</button>
     </div>
 
-    <div class="modal-overlay" id="securityModal">
-        <div class="modal">
-            <h2>🔐 Master Key Settings</h2>
-            <p style="color: var(--danger); font-size: 0.8rem; margin-bottom: 20px;">⚠️ Changes here only become global after you export and redeploy config.js.</p>
-            <form id="securityForm">
-                <div class="form-group">
-                    <label for="currentPassword">Current Password</label>
-                    <input type="password" id="currentPassword" required autocomplete="current-password">
-                </div>
-                <hr style="margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
-                <div class="form-group">
-                    <label for="newUsername">New Username</label>
-                    <input type="text" id="newUsername" placeholder="Enter new username">
-                </div>
-                <div class="form-group">
-                    <label for="newPassword">New Password</label>
-                    <input type="password" id="newPassword" autocomplete="new-password" placeholder="Leave blank to keep current">
-                </div>
-                <div class="form-group">
-                    <label for="confirmNewPassword">Confirm New Password</label>
-                    <input type="password" id="confirmNewPassword" autocomplete="new-password">
-                </div>
-                <div class="modal-buttons">
-                    <button type="button" class="btn btn-secondary" id="exportConfigBtn">Export Config</button>
-                    <button type="button" class="btn btn-secondary" id="cancelSecurity">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Update Credentials</button>
-                </div>
-                <p id="securityError" class="error-text" style="display: none;"></p>
-                <p id="securitySuccess" style="display: none; color: var(--success-color); font-size: 0.85rem; margin-top: 15px; text-align: center;">Update successful!</p>
-            </form>
-        </div>
-    </div>
+    <main class="soundboard-grid" id="soundboardGrid">
+    </main>
+
+    <footer class="app-footer">
+        <p>Tip: Click buttons to play sounds | Toggle Edit Mode to manage</p>
+    </footer>
 
     <input type="file" id="fileInput" multiple accept=".mp3,.wav,.ogg" style="display: none;">
 
-    <script src="config.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
